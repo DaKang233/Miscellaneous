@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>通用技术动态系统理解 · 交互式教学实验平台</title>
+  <style>
+    /* 统一设计令牌：课堂软件质感、科技渐变与卡片阴影。 */
+    :root {
+      --bg1: #07111f;
+      --bg2: #102f54;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-soft: rgba(246, 250, 255, 0.86);
+      --primary: #1e88ff;
+      --secondary: #00c2a8;
+      --accent: #ffb020;
+      --danger: #ff5a73;
+      --ink: #132238;
+      --muted: #637083;
+      --line: rgba(30, 136, 255, 0.18);
+      --shadow: 0 18px 48px rgba(0, 18, 45, 0.26);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(0, 194, 168, 0.25), transparent 26%),
+        radial-gradient(circle at 88% 18%, rgba(30, 136, 255, 0.28), transparent 32%),
+        linear-gradient(135deg, var(--bg1), var(--bg2));
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .app-shell { max-width: 1480px; margin: 0 auto; padding: 20px; }
+
+    header.hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      color: white;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 { margin: 0 0 8px; font-size: clamp(1.55rem, 3vw, 2.7rem); letter-spacing: 0.02em; }
+    .hero p { margin: 0; color: rgba(255, 255, 255, 0.78); line-height: 1.65; }
+
+    .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    button, select, input { font: inherit; }
+
+    .btn {
+      border: 0;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), #5b5cff);
+      border-radius: 999px;
+      padding: 10px 16px;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(30, 136, 255, 0.26);
+      transition: transform 0.18s ease, filter 0.18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .btn.ghost { background: rgba(255,255,255,0.15); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); }
+    .btn.secondary { background: linear-gradient(135deg, var(--secondary), #1e88ff); }
+    .btn.warn { background: linear-gradient(135deg, var(--accent), #ff7a45); }
+
+    /* 顶部四模块标签栏，保持演示时快速切换。 */
+    .tabs {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 10px;
+      margin-bottom: 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.13);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .tab {
+      border: 0;
+      padding: 13px 10px;
+      border-radius: 16px;
+      color: rgba(255,255,255,0.86);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .tab.active { color: var(--ink); background: white; box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
+    .tab:not(.active):hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+
+    .module { display: none; animation: fadeIn 0.3s ease; }
+    .module.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .grid { display: grid; grid-template-columns: 1.45fr 0.85fr; gap: 16px; align-items: stretch; }
+    .grid.three { grid-template-columns: 1.25fr 0.78fr 0.78fr; }
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.58);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px 18px 10px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(246,250,255,0.42));
+    }
+    .card h2, .card h3 { margin: 0; }
+    .card h2 { font-size: 1.2rem; }
+    .card h3 { font-size: 1rem; }
+    .hint { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+    .card-body { padding: 16px 18px 18px; }
+
+    /* 所有动态图统一使用 Canvas，便于本地单文件平滑运行。 */
+    canvas { display: block; width: 100%; height: min(56vh, 520px); min-height: 360px; border-radius: 16px; background: linear-gradient(180deg, #f8fbff, #edf5ff); border: 1px solid #dbe9fb; }
+    .small-canvas { height: 330px; min-height: 300px; }
+
+    .control-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+    .progress-wrap { flex: 1 1 180px; display: flex; gap: 8px; align-items: center; color: var(--muted); }
+    input[type="range"] { width: 100%; accent-color: var(--primary); }
+
+    .slider-list { display: grid; gap: 13px; }
+    .slider-row { padding: 11px 12px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 14px; }
+    .slider-row label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-weight: 700; }
+    .slider-row output { color: var(--primary); font-variant-numeric: tabular-nums; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .metric { border-radius: 14px; padding: 12px; background: linear-gradient(135deg, rgba(30,136,255,0.10), rgba(0,194,168,0.09)); border: 1px solid var(--line); }
+    .metric .label { color: var(--muted); font-size: 0.82rem; }
+    .metric .value { margin-top: 4px; font-size: 1.35rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+    .step-list { display: grid; gap: 9px; }
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      padding: 11px;
+      border-radius: 14px;
+      background: #f6f9fe;
+      border: 1px solid transparent;
+      opacity: 0.56;
+      transition: all 0.2s ease;
+    }
+    .step.visible { opacity: 1; }
+    .step.active { border-color: rgba(30,136,255,0.55); background: #eaf4ff; box-shadow: 0 10px 24px rgba(30,136,255,0.12); transform: translateX(2px); }
+    .badge { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: white; background: var(--primary); font-weight: 800; }
+    .step strong { display: block; margin-bottom: 3px; }
+    .step span { color: var(--muted); line-height: 1.45; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #e3ecf7; text-align: center; }
+    th { color: #37506e; background: #f3f8ff; position: sticky; top: 0; }
+    .table-wrap { max-height: 260px; overflow: auto; border-radius: 14px; border: 1px solid #e0eaf6; }
+
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; background: #edf6ff; color: #2566a8; font-weight: 700; font-size: 0.82rem; }
+    .good { color: #087f5b; } .bad { color: #c92a2a; } .mid { color: #b36b00; }
+    .split { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .practice { background: #fbfdff; border: 1px dashed rgba(30,136,255,0.36); border-radius: 16px; padding: 14px; }
+    .practice h4 { margin: 0 0 8px; }
+    .feedback-box { min-height: 74px; padding: 12px; border-radius: 14px; background: #0f2138; color: #d8edff; line-height: 1.55; }
+
+    @media (max-width: 1050px) {
+      .grid, .grid.three { grid-template-columns: 1fr; }
+      header.hero { grid-template-columns: 1fr; }
+      .hero-actions { justify-content: flex-start; }
+      canvas { height: 430px; }
+    }
+    @media (max-width: 720px) {
+      .app-shell { padding: 12px; }
+      /* 顶部四模块标签栏，保持演示时快速切换。 */
+    .tabs { grid-template-columns: 1fr 1fr; }
+      .split, .metric-grid { grid-template-columns: 1fr; }
+      canvas { min-height: 330px; height: 380px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <h1>通用技术动态系统理解 · 交互式教学实验平台</h1>
+        <p>通过动态可视化、参数调节、分步推导和实时数据反馈，理解闭环控制、工艺流程、系统优化等通用技术核心概念。</p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn ghost" id="fullscreenBtn">全屏演示</button>
+        <button class="btn secondary" id="nextStepGlobal">下一步讲解</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="模块导航">
+      <button class="tab active" data-module="core">1. 核心原理理解</button>
+      <button class="tab" data-module="closed">2. 闭环控制系统</button>
+      <button class="tab" data-module="process">3. 工艺流程分析</button>
+      <button class="tab" data-module="case">4. 系统优化与真实案例</button>
+    </nav>
+
+    <main>
+      <section class="module active" id="module-core">
+        <div class="grid">
+          <article class="card">
+            <div class="card-header">
+              <div><h2>动态控制系统实验台</h2><div class="hint">观察“目标值→控制器→执行器→被控对象→输出→反馈”的连续变化，拖动参数后系统立即响应。</div></div>
+              <span class="pill">SVG/Canvas 动态流光 + 实时曲线</span>
+            </div>
+            <div class="card-body">
+              <canvas id="coreCanvas"></canvas>
+              <div class="control-bar" data-controls="core">
+                <button class="btn play">暂停</button><button class="btn warn reset">重置</button>
+                <div class="progress-wrap">进度 <input class="progress" type="range" min="0" max="100" value="0"></div>
+                <div class="progress-wrap">速度 <input class="speed" type="range" min="0.3" max="3" step="0.1" value="1"><output>1.0×</output></div>
+              </div>
+            </div>
+          </article>
+          <aside class="card">
+            <div class="card-header"><h3>实验参数</h3><span class="pill">即时反馈</span></div>
+            <div class="card-body slider-list" id="coreControls"></div>
+            <div class="card-body">
+              <div class="metric-grid" id="coreMetrics"></div>
+            </div>
+          </aside>
+        </div>
+        <div class="grid" style="margin-top:16px; grid-template-columns: 1fr 1fr;">
+          <article class="card">
+            <div class="card-header"><h3>探究式推导：先观察，再对比，最后总结</h3></div>
+            <div class="card-body"><div class="step-list" id="coreSteps"></div></div>
+          </article>
+          <article class="card">
+            <div class="card-header"><h3>自动实验数据表</h3><button class="btn ghost" id="clearCoreTable" style="color:var(--ink); box-shadow: inset 0 0 0 1px #c8d9ee;">清空记录</button></div>
+            <div class="card-body"><div class="table-wrap"><table><thead><tr><th>实验编号</th><th>目标值</th><th>实际值</th><th>偏差</th><th>响应时间</th><th>是否稳定</th></tr></thead><tbody id="coreTable"></tbody></table></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="module" id="module-closed">
+        <div class="grid three">
+          <article class="card">
+            <div class="card-header"><div><h2>基础例题：智能空调如何保持室温稳定？</h2><div class="hint">温度曲线会出现超调、回稳；控制器根据反馈自动调整功率。</div></div></div>
+            <div class="card-body"><canvas id="closedCanvas"></canvas><div class="control-bar" data-controls="closed"><button class="btn play">暂停</button><button class="btn warn reset">重置</button><div class="progress-wrap">进度 <input class="progress" type="range" min="0" max="100" value="0"></div><div class="progress-wrap">速度 <input class="speed" type="range" min="0.3" max="3" step="0.1" value="1"><output>1.0×</output></div></div></div>
+          </article>
+          <aside class="card"><div class="card-header"><h3>空调系统参数</h3></div><div class="card-body slider-list" id="closedControls"></div><div class="card-body metric-grid" id="closedMetrics"></div></aside>
+          <aside class="card"><div class="card-header"><h3>逐步分析过程</h3><button class="btn secondary" id="closedNext">播放下一步</button></div><div class="card-body"><div class="step-list" id="closedSteps"></div></div></aside>
+        </div>
+        <div class="grid" style="margin-top:16px;">
+          <article class="card"><div class="card-header"><h3>变式练习：智能灌溉</h3></div><div class="card-body"><div class="practice"><h4>任务</h4><p>土壤湿度低于目标值时，水泵应如何根据湿度反馈调整？试着增大“外界干扰”，观察系统是否振荡。</p><button class="btn" id="irrigationBtn">模拟：传感器误差 +10%</button></div><div class="feedback-box" id="closedFeedback">提示：闭环控制的关键不是“一直加大输出”，而是持续比较目标与反馈。</div></div></article>
+          <article class="card"><div class="card-header"><h3>迁移题：无人机平衡控制</h3></div><div class="card-body"><canvas id="droneCanvas" class="small-canvas"></canvas><div class="split"><button class="btn warn" id="windBtn">加入侧风错误情况</button><button class="btn secondary" id="stabilizeBtn">启动姿态反馈修正</button></div></div></article>
+        </div>
+      </section>
+
+      <section class="module" id="module-process">
+        <div class="grid">
+          <article class="card"><div class="card-header"><div><h2>动态工艺流程图：饮料生产线</h2><div class="hint">原料逐步经过加工、检测、包装、入库，节点会显示进度、质量结果和能量/信息流。</div></div></div><div class="card-body"><canvas id="processCanvas"></canvas><div class="control-bar" data-controls="process"><button class="btn play">暂停</button><button class="btn warn reset">重置</button><div class="progress-wrap">进度 <input class="progress" type="range" min="0" max="100" value="0"></div><div class="progress-wrap">速度 <input class="speed" type="range" min="0.3" max="3" step="0.1" value="1"><output>1.0×</output></div></div></div></article>
+          <aside class="card"><div class="card-header"><h3>工艺参数调节</h3></div><div class="card-body slider-list" id="processControls"></div><div class="card-body metric-grid" id="processMetrics"></div></aside>
+        </div>
+        <div class="grid" style="margin-top:16px;">
+          <article class="card"><div class="card-header"><h3>分步工艺分析</h3><button class="btn secondary" id="processNext">下一工序</button></div><div class="card-body"><div class="step-list" id="processSteps"></div></div></article>
+          <article class="card"><div class="card-header"><h3>工艺优化练习：如何提高生产效率？</h3></div><div class="card-body"><p class="hint">尝试提高自动化程度或调整检测标准，观察成本、效率、良品率和瓶颈位置如何变化。</p><div class="feedback-box" id="processAdvice"></div></div></article>
+        </div>
+      </section>
+
+      <section class="module" id="module-case">
+        <div class="grid">
+          <article class="card"><div class="card-header"><div><h2>大型动态系统仿真：智慧交通路口</h2><div class="hint">车辆连续移动，红绿灯按策略自动调节；拥堵出现时系统尝试优化。</div></div><select id="caseSelect"><option>智慧交通系统</option><option>智能家居</option><option>自动仓储</option><option>无人配送</option><option>智慧农业</option></select></div><div class="card-body"><canvas id="caseCanvas"></canvas><div class="control-bar" data-controls="case"><button class="btn play">暂停</button><button class="btn warn reset">重置</button><div class="progress-wrap">进度 <input class="progress" type="range" min="0" max="100" value="0"></div><div class="progress-wrap">速度 <input class="speed" type="range" min="0.3" max="3" step="0.1" value="1"><output>1.0×</output></div></div></div></article>
+          <aside class="card"><div class="card-header"><h3>系统优化参数</h3></div><div class="card-body slider-list" id="caseControls"></div><div class="card-body metric-grid" id="caseMetrics"></div></aside>
+        </div>
+        <div class="grid" style="margin-top:16px;">
+          <article class="card"><div class="card-header"><h3>优化引导</h3><button class="btn secondary" id="caseNext">下一条思考</button></div><div class="card-body"><div class="step-list" id="caseSteps"></div></div></article>
+          <article class="card"><div class="card-header"><h3>数据分析结论</h3></div><div class="card-body"><div class="feedback-box" id="caseAdvice"></div></div></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    'use strict';
+
+    // -----------------------------
+    // 通用绘图与交互工具
+    // -----------------------------
+    const TAU = Math.PI * 2;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const fmt = (v, n = 1) => Number(v).toFixed(n);
+
+    function resizeCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w: rect.width, h: rect.height, ctx };
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+    }
+
+    function arrow(ctx, x1, y1, x2, y2, color = '#3a78c2', width = 3) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - 10 * Math.cos(angle - 0.45), y2 - 10 * Math.sin(angle - 0.45));
+      ctx.lineTo(x2 - 10 * Math.cos(angle + 0.45), y2 - 10 * Math.sin(angle + 0.45)); ctx.closePath(); ctx.fill();
+    }
+
+    function pulseOnLine(ctx, x1, y1, x2, y2, t, color = '#00c2a8') {
+      const p = ((t % 1) + 1) % 1;
+      const x = lerp(x1, x2, p), y = lerp(y1, y2, p);
+      const g = ctx.createRadialGradient(x, y, 1, x, y, 18);
+      g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,194,168,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 18, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill();
+    }
+
+    // 模块基类：统一播放/暂停、重置、速度与进度拖动逻辑。
+    class TeachingModule {
+      constructor(name, canvasId) {
+        this.name = name;
+        this.canvas = document.getElementById(canvasId);
+        this.t = 0; this.playing = true; this.speed = 1; this.progress = 0; this.stepIndex = 0;
+      }
+      reset() { this.t = 0; this.progress = 0; this.stepIndex = 0; }
+      update(dt) { if (this.playing) { this.t += dt * this.speed; this.progress = (this.t % 60) / 60 * 100; } }
+      draw() {}
+      bindControls() {
+        const bar = document.querySelector(`[data-controls="${this.name}"]`);
+        if (!bar) return;
+        const play = bar.querySelector('.play'), reset = bar.querySelector('.reset'), speed = bar.querySelector('.speed'), out = bar.querySelector('output'), progress = bar.querySelector('.progress');
+        play.addEventListener('click', () => { this.playing = !this.playing; play.textContent = this.playing ? '暂停' : '播放'; });
+        reset.addEventListener('click', () => { this.reset(); this.onReset?.(); });
+        speed.addEventListener('input', () => { this.speed = Number(speed.value); out.textContent = `${fmt(this.speed, 1)}×`; });
+        progress.addEventListener('input', () => { this.progress = Number(progress.value); this.t = this.progress / 100 * 60; });
+        this.progressInput = progress;
+      }
+    }
+
+    function createSliders(containerId, definitions, values, onInput) {
+      const box = document.getElementById(containerId);
+      box.innerHTML = '';
+      definitions.forEach(def => {
+        const row = document.createElement('div'); row.className = 'slider-row';
+        row.innerHTML = `<label><span>${def.label}</span><output>${def.format(values[def.key])}</output></label><input type="range" min="${def.min}" max="${def.max}" step="${def.step}" value="${values[def.key]}">`;
+        const input = row.querySelector('input'), output = row.querySelector('output');
+        input.addEventListener('input', () => { values[def.key] = Number(input.value); output.textContent = def.format(values[def.key]); onInput(def.key); });
+        box.appendChild(row);
+      });
+    }
+
+    function renderMetrics(id, metrics) {
+      document.getElementById(id).innerHTML = metrics.map(m => `<div class="metric"><div class="label">${m.label}</div><div class="value ${m.cls || ''}">${m.value}</div></div>`).join('');
+    }
+
+    function renderSteps(id, steps, index, revealAll = false) {
+      document.getElementById(id).innerHTML = steps.map((s, i) => `<div class="step ${(revealAll || i <= index) ? 'visible' : ''} ${i === index ? 'active' : ''}"><div class="badge">${i + 1}</div><div><strong>${s.title}</strong><span>${s.text}</span></div></div>`).join('');
+    }
+
+    // 核心实验台：模拟闭环控制中目标、反馈、干扰与输出曲线的实时关系。
+    class CoreModule extends TeachingModule {
+      constructor() {
+        super('core', 'coreCanvas');
+        this.values = { target: 26, response: 0.55, disturbance: 1.4, feedback: 0.75, sensitivity: 1.25 };
+        this.actual = 18; this.velocity = 0; this.power = 0; this.history = []; this.records = []; this.recordNo = 1; this.lastRecord = 0;
+        this.steps = [
+          { title: '观察现象', text: '先改变目标值或干扰强度，观察输出曲线是否偏离目标。' },
+          { title: '对比数据', text: '读取目标值、实际值和偏差，判断系统是否正在自动修正。' },
+          { title: '寻找反馈作用', text: '反馈越强，控制器越能及时发现偏差，但过强可能产生振荡。' },
+          { title: '分析振荡原因', text: '响应速度和灵敏度过高时，系统可能来不及稳定就再次调整。' },
+          { title: '形成规律', text: '稳定系统需要在控制精度、响应速度和抗干扰能力之间取得平衡。' }
+        ];
+        createSliders('coreControls', [
+          { key: 'target', label: '目标值', min: 18, max: 34, step: 0.5, format: v => `${fmt(v)} ℃` },
+          { key: 'response', label: '系统响应速度', min: 0.15, max: 1.4, step: 0.05, format: v => fmt(v, 2) },
+          { key: 'disturbance', label: '干扰强度', min: 0, max: 4, step: 0.1, format: v => fmt(v, 1) },
+          { key: 'feedback', label: '反馈强度', min: 0.1, max: 1.4, step: 0.05, format: v => fmt(v, 2) },
+          { key: 'sensitivity', label: '控制器灵敏度', min: 0.3, max: 2.5, step: 0.05, format: v => fmt(v, 2) }
+        ], this.values, () => this.recordExperiment());
+        renderSteps('coreSteps', this.steps, 0);
+        document.getElementById('clearCoreTable').addEventListener('click', () => { this.records = []; this.recordNo = 1; this.renderTable(); });
+      }
+      onReset() { this.actual = 18; this.velocity = 0; this.history = []; this.recordExperiment(true); }
+      recordExperiment(force = false) {
+        if (!force && performance.now() - this.lastRecord < 500) return;
+        this.lastRecord = performance.now();
+        const err = this.values.target - this.actual;
+        const stable = Math.abs(err) < 0.7 && Math.abs(this.velocity) < 0.18;
+        this.records.unshift({ no: this.recordNo++, target: this.values.target, actual: this.actual, err, time: clamp(8 / this.values.response + Math.abs(err), 3, 60), stable });
+        this.records = this.records.slice(0, 10); this.renderTable();
+      }
+      renderTable() {
+        document.getElementById('coreTable').innerHTML = this.records.map(r => `<tr><td>${r.no}</td><td>${fmt(r.target)}</td><td>${fmt(r.actual)}</td><td class="${Math.abs(r.err) < 1 ? 'good' : 'mid'}">${fmt(r.err)}</td><td>${fmt(r.time)} s</td><td class="${r.stable ? 'good' : 'bad'}">${r.stable ? '稳定' : '调整中'}</td></tr>`).join('');
+      }
+      update(dt) {
+        super.update(dt);
+        const disturb = Math.sin(this.t * 0.9) * this.values.disturbance + (Math.sin(this.t * 0.21) > 0.92 ? this.values.disturbance * 0.7 : 0);
+        const error = this.values.target - this.actual;
+        this.power = clamp(error * this.values.sensitivity * this.values.feedback - disturb * 0.45, -12, 12);
+        this.velocity += (this.power * 0.08 - this.velocity * 0.18) * this.values.response;
+        this.actual += (this.velocity + disturb * 0.012) * dt * 6;
+        this.actual = clamp(this.actual, 8, 45);
+        this.history.push(this.actual); if (this.history.length > 180) this.history.shift();
+        if (Math.floor(this.t) % 8 === 0 && Math.abs(this.t - Math.round(this.t)) < 0.04) this.recordExperiment();
+        renderMetrics('coreMetrics', [
+          { label: '输出 Output', value: `${fmt(this.actual)} ℃` }, { label: '偏差 Error', value: `${fmt(error)} ℃`, cls: Math.abs(error) < 1 ? 'good' : 'mid' },
+          { label: '控制器输出', value: `${fmt(this.power)} kW` }, { label: '稳定判断', value: Math.abs(error) < 0.7 ? '稳定' : '调整中', cls: Math.abs(error) < 0.7 ? 'good' : 'bad' }
+        ]);
+      }
+      draw() {
+        const { ctx, w, h } = resizeCanvas(this.canvas); ctx.clearRect(0, 0, w, h);
+        const nodes = [
+          ['目标值 Input', w*0.10, h*0.26], ['控制器 Controller', w*0.32, h*0.26], ['执行器 Actuator', w*0.54, h*0.26], ['被控对象 Plant', w*0.76, h*0.26], ['输出 Output', w*0.76, h*0.62], ['反馈 Feedback', w*0.32, h*0.62]
+        ];
+        const active = Math.floor((this.t * 0.8) % nodes.length);
+        nodes.forEach((n, i) => { roundRect(ctx, n[1]-62, n[2]-28, 124, 56, 14, i === active ? '#dff4ff' : '#ffffff', i === active ? '#1e88ff' : '#c7d8ee'); ctx.fillStyle = '#17324d'; ctx.font = '700 13px Microsoft YaHei'; ctx.textAlign = 'center'; ctx.fillText(n[0], n[1], n[2]+4); });
+        [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]].forEach(([a,b], idx) => { const A=nodes[a], B=nodes[b]; arrow(ctx,A[1]+(B[1]>A[1]?64:B[1]<A[1]?-64:0),A[2]+(B[2]>A[2]?30:B[2]<A[2]?-30:0),B[1]+(B[1]>A[1]?-64:B[1]<A[1]?64:0),B[2]+(B[2]>A[2]?-30:B[2]<A[2]?30:0),'#5795d7',3); pulseOnLine(ctx,A[1],A[2],B[1],B[2],this.t*0.65+idx/6); });
+        ctx.fillStyle = 'rgba(255,90,115,0.12)'; ctx.beginPath(); ctx.arc(w*0.88, h*0.18, 44 + Math.sin(this.t*4)*4, 0, TAU); ctx.fill(); ctx.fillStyle = '#ff5a73'; ctx.font = '700 14px Microsoft YaHei'; ctx.fillText(`干扰 ${fmt(this.values.disturbance)}`, w*0.88, h*0.18);
+        const gx = w*0.08, gy = h*0.75, gw = w*0.84, gh = h*0.18; roundRect(ctx, gx, gy, gw, gh, 12, '#f7fbff', '#d4e5f7');
+        ctx.strokeStyle = '#ffb020'; ctx.setLineDash([6,4]); ctx.beginPath(); const targetY = gy + gh - (this.values.target - 8) / 37 * gh; ctx.moveTo(gx, targetY); ctx.lineTo(gx+gw, targetY); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#1e88ff'; ctx.lineWidth = 3; ctx.beginPath(); this.history.forEach((v,i)=>{ const x=gx+i/179*gw, y=gy+gh-(v-8)/37*gh; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+        ctx.fillStyle = '#456'; ctx.font = '12px Microsoft YaHei'; ctx.textAlign = 'left'; ctx.fillText('输出曲线（蓝）与目标值（虚线）', gx+10, gy+18);
+      }
+    }
+
+    // 闭环控制例题：以智能空调为主线，并提供无人机迁移动画。
+    class ClosedModule extends TeachingModule {
+      constructor() { super('closed','closedCanvas'); this.values={target:24,outside:32,insulation:0.55,gain:1.35,disturbance:1.0}; this.temp=31; this.power=0; this.history=[]; this.droneTilt=0; this.wind=0; this.stabilize=true; this.steps=[{title:'确定目标值',text:'把设定温度作为系统希望达到的输出。'},{title:'检测反馈信号',text:'温度传感器持续读取当前室温。'},{title:'比较误差',text:'控制器计算“目标温度－当前温度”。'},{title:'控制器调整',text:'根据误差改变制冷功率，功率不是固定不变的。'},{title:'系统重新稳定',text:'当误差变小后，功率下降，温度围绕目标值小幅波动。'}]; createSliders('closedControls',[{key:'target',label:'目标温度',min:18,max:30,step:0.5,format:v=>`${fmt(v)} ℃`},{key:'outside',label:'外界温度',min:20,max:40,step:0.5,format:v=>`${fmt(v)} ℃`},{key:'insulation',label:'保温能力',min:0.1,max:1,step:0.05,format:v=>fmt(v,2)},{key:'gain',label:'控制增益',min:0.4,max:2.4,step:0.05,format:v=>fmt(v,2)},{key:'disturbance',label:'开门干扰',min:0,max:4,step:0.1,format:v=>fmt(v,1)}],this.values,()=>{}); renderSteps('closedSteps',this.steps,0); document.getElementById('closedNext').onclick=()=>{this.stepIndex=(this.stepIndex+1)%this.steps.length;renderSteps('closedSteps',this.steps,this.stepIndex);}; document.getElementById('irrigationBtn').onclick=()=>{this.values.disturbance=clamp(this.values.disturbance+1,0,4);document.getElementById('closedFeedback').textContent='传感器误差使反馈值偏高，控制器可能误判“已接近目标”，导致调整不足；这说明反馈信号的准确性会影响闭环质量。';}; document.getElementById('windBtn').onclick=()=>{this.wind=1.6;this.stabilize=false;}; document.getElementById('stabilizeBtn').onclick=()=>{this.stabilize=true;}; }
+      onReset(){this.temp=31;this.history=[];this.wind=0;this.droneTilt=0;}
+      update(dt){ super.update(dt); const err=this.temp-this.values.target; const openDoor=(Math.sin(this.t*0.7)>0.86?this.values.disturbance:0); this.power=clamp(err*this.values.gain*18,0,100); const heat=(this.values.outside-this.temp)*(1-this.values.insulation)*0.025+openDoor*0.04; const cool=this.power*0.0045; this.temp+=(heat-cool)*dt*8; this.history.push(this.temp); if(this.history.length>170)this.history.shift(); this.droneTilt += ((this.wind*10) - (this.stabilize?this.droneTilt*1.8:0) + Math.sin(this.t*3)*1.2)*dt; this.droneTilt=clamp(this.droneTilt,-35,35); this.wind*=0.995; renderMetrics('closedMetrics',[{label:'当前温度',value:`${fmt(this.temp)} ℃`},{label:'温差',value:`${fmt(this.values.target-this.temp)} ℃`,cls:Math.abs(this.values.target-this.temp)<0.8?'good':'mid'},{label:'空调功率',value:`${fmt(this.power,0)} %`},{label:'外界干扰',value:`${fmt(this.values.disturbance)}`,cls:'mid'}]); }
+      draw(){ const {ctx,w,h}=resizeCanvas(this.canvas); ctx.clearRect(0,0,w,h); roundRect(ctx,w*.07,h*.13,w*.34,h*.42,18,'#fff','#cfe0f4'); ctx.fillStyle='#dff3ff'; ctx.fillRect(w*.10,h*.20,w*.28,h*.24); ctx.fillStyle='#17324d'; ctx.font='800 18px Microsoft YaHei'; ctx.textAlign='center'; ctx.fillText('智能空调闭环控制',w*.24,h*.18); ctx.font='700 34px Segoe UI'; ctx.fillText(`${fmt(this.temp)}℃`,w*.24,h*.34); ctx.font='14px Microsoft YaHei'; ctx.fillText(`目标 ${fmt(this.values.target)}℃ · 功率 ${fmt(this.power,0)}%`,w*.24,h*.43); const fanX=w*.24, fanY=h*.50; for(let i=0;i<4;i++){ctx.save();ctx.translate(fanX,fanY);ctx.rotate(this.t*6+i*Math.PI/2);ctx.fillStyle='rgba(30,136,255,.45)';roundRect(ctx,0,-6,52,12,8,'rgba(30,136,255,.45)');ctx.restore();} const gx=w*.48,gy=h*.15,gw=w*.45,gh=h*.68; roundRect(ctx,gx,gy,gw,gh,16,'#f8fbff','#d5e6f7'); ctx.strokeStyle='#ffb020';ctx.setLineDash([7,4]);ctx.beginPath();const ty=gy+gh-(this.values.target-15)/25*gh;ctx.moveTo(gx,ty);ctx.lineTo(gx+gw,ty);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#1e88ff';ctx.lineWidth=3;ctx.beginPath();this.history.forEach((v,i)=>{const x=gx+i/169*gw,y=gy+gh-(v-15)/25*gh;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke(); ['目标','反馈','比较误差','调整功率','回稳'][this.stepIndex] && (ctx.fillStyle='rgba(0,194,168,.12)',ctx.fillRect(gx,gy+gh+12,gw,36),ctx.fillStyle='#087f5b',ctx.font='700 15px Microsoft YaHei',ctx.fillText(`当前步骤：${this.steps[this.stepIndex].title}`,gx+gw/2,gy+gh+36)); }
+      drawDrone(){ const canvas=document.getElementById('droneCanvas'); const {ctx,w,h}=resizeCanvas(canvas); ctx.clearRect(0,0,w,h); ctx.fillStyle='#f8fbff';ctx.fillRect(0,0,w,h); ctx.save(); ctx.translate(w/2,h/2); ctx.rotate(this.droneTilt*Math.PI/180); ctx.strokeStyle='#17324d';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(-90,0);ctx.lineTo(90,0);ctx.stroke(); roundRect(ctx,-34,-14,68,28,12,'#1e88ff','#14549b'); [[-100,0],[100,0]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],30,0,TAU);ctx.strokeStyle='#00c2a8';ctx.lineWidth=4;ctx.stroke();}); ctx.restore(); ctx.fillStyle='#17324d';ctx.font='700 15px Microsoft YaHei';ctx.textAlign='center';ctx.fillText(`姿态角 ${fmt(this.droneTilt)}° · ${this.stabilize?'反馈修正中':'错误：未启用修正'}`,w/2,32); }
+    }
+
+    // 工艺流程模块：展示生产节点、质量检测、能量流与信息流。
+    class ProcessModule extends TeachingModule {
+      constructor(){ super('process','processCanvas'); this.values={speed:55,standard:82,auto:62,labor:38}; this.items=[]; this.steps=['原料输入：水、糖浆、瓶胚进入生产线。','加工混合：设备消耗能量完成配比和灌装。','质量检测：传感器采集信息并判断是否合格。','包装贴标：合格品进入包装，次品被剔除。','入库配送：输出成品和库存信息。'].map((t,i)=>({title:['原料','加工','检测','包装','入库'][i],text:t})); createSliders('processControls',[{key:'speed',label:'生产速度',min:20,max:100,step:1,format:v=>`${v}%`},{key:'standard',label:'检测标准',min:60,max:98,step:1,format:v=>`${v}分`},{key:'auto',label:'自动化程度',min:20,max:100,step:1,format:v=>`${v}%`},{key:'labor',label:'人工参与程度',min:0,max:80,step:1,format:v=>`${v}%`}],this.values,()=>{}); renderSteps('processSteps',this.steps,0); document.getElementById('processNext').onclick=()=>{this.stepIndex=(this.stepIndex+1)%this.steps.length;renderSteps('processSteps',this.steps,this.stepIndex);}; }
+      onReset(){this.items=[];}
+      update(dt){ super.update(dt); if(this.playing && (this.items.length<14) && (this.t* this.values.speed/55)%1<0.04)this.items.push({p:0,q:Math.random()*100}); this.items.forEach(it=>it.p+=dt*this.speed*this.values.speed/900); this.items=this.items.filter(it=>it.p<1.08); const efficiency=clamp(this.values.speed*.55+this.values.auto*.45-Math.max(0,this.values.standard-85)*.55,20,100); const quality=clamp(72+this.values.standard*.18+this.values.auto*.13-this.values.speed*.12,45,99); const cost=clamp(120-this.values.auto*.28+this.values.labor*.42+this.values.standard*.1,40,160); const bottleneck=this.values.standard>90?'质量检测':this.values.auto<45?'人工搬运':this.values.speed>85?'包装入库':'暂无明显瓶颈'; renderMetrics('processMetrics',[{label:'效率',value:`${fmt(efficiency,0)}%`,cls:efficiency>75?'good':'mid'},{label:'良品率',value:`${fmt(quality,0)}%`,cls:quality>85?'good':'mid'},{label:'成本指数',value:fmt(cost,0),cls:cost<95?'good':'mid'},{label:'瓶颈位置',value:bottleneck,cls:bottleneck==='暂无明显瓶颈'?'good':'bad'}]); document.getElementById('processAdvice').textContent=`实时评价：当前瓶颈为“${bottleneck}”。若效率偏低，可提高自动化或降低不必要等待；若良品率下降，应适当降低速度并提高检测精度。`; }
+      draw(){ const {ctx,w,h}=resizeCanvas(this.canvas); ctx.clearRect(0,0,w,h); const labels=['原料','加工','检测','包装','入库']; const icons=['◼','⚙','✓','▣','⌂']; const y=h*.38; const xs=labels.map((_,i)=>w*(.12+i*.19)); labels.forEach((lab,i)=>{roundRect(ctx,xs[i]-54,y-38,108,76,16,i===this.stepIndex?'#e4f5ff':'#fff','#c8d9ee');ctx.font='26px Segoe UI Emoji';ctx.textAlign='center';ctx.fillText(icons[i],xs[i],y-6);ctx.fillStyle='#17324d';ctx.font='800 15px Microsoft YaHei';ctx.fillText(lab,xs[i],y+24); if(i<labels.length-1){arrow(ctx,xs[i]+58,y,xs[i+1]-58,y,'#5795d7',4);pulseOnLine(ctx,xs[i]+58,y,xs[i+1]-58,y,this.t*.8+i*.2,'#1e88ff');}}); this.items.forEach(it=>{const seg=Math.min(4,Math.floor(it.p*5));const local=it.p*5-seg;const x=seg>=4?xs[4]:lerp(xs[seg],xs[seg+1],local);const yy=y+80+Math.sin((it.p+this.t)*8)*6;ctx.fillStyle=it.q>this.values.standard?'#00c2a8':'#ff5a73';roundRect(ctx,x-12,yy-12,24,24,6,ctx.fillStyle);}); const info=['输入：原料与订单','能量：电能→机械能','信息：传感器评分','输出：合格包装','输出：库存数据'][this.stepIndex]; roundRect(ctx,w*.12,h*.72,w*.76,58,16,'#0f2138');ctx.fillStyle='#d8edff';ctx.font='700 16px Microsoft YaHei';ctx.textAlign='center';ctx.fillText(`当前工序：${this.steps[this.stepIndex].title} · ${info}`,w*.50,h*.78); }
+    }
+
+    // 综合案例模块：智慧交通系统根据拥堵反馈进行动态优化。
+    class CaseModule extends TeachingModule {
+      constructor(){ super('case','caseCanvas'); this.values={green:28,cars:46,width:2,ai:70}; this.cars=[]; this.light=0; this.steps=[{title:'发现瓶颈',text:'当车辆到达率超过路口放行能力，队列快速增加。'},{title:'调整控制策略',text:'AI策略会根据排队长度动态延长繁忙方向绿灯。'},{title:'比较优化前后',text:'观察平均等待时间、效率、能耗和拥堵指数是否改善。'},{title:'解释优化有效性',text:'优化不是让所有参数最大，而是让资源分配匹配真实需求。'}]; createSliders('caseControls',[{key:'green',label:'红绿灯基准时间',min:10,max:60,step:1,format:v=>`${v}s`},{key:'cars',label:'车辆数量',min:10,max:90,step:1,format:v=>`${v}辆`},{key:'width',label:'道路宽度',min:1,max:4,step:1,format:v=>`${v}车道`},{key:'ai',label:'AI控制策略',min:0,max:100,step:1,format:v=>`${v}%`}],this.values,()=>{}); renderSteps('caseSteps',this.steps,0); document.getElementById('caseNext').onclick=()=>{this.stepIndex=(this.stepIndex+1)%this.steps.length;renderSteps('caseSteps',this.steps,this.stepIndex);}; }
+      onReset(){this.cars=[];}
+      update(dt){ super.update(dt); this.light=(Math.floor(this.t/(this.values.green/10))%2); const desired=this.values.cars; while(this.cars.length<desired)this.cars.push({lane:Math.floor(Math.random()*4),pos:Math.random(),wait:0,color:`hsl(${190+Math.random()*80},75%,52%)`}); this.cars=this.cars.slice(0,desired); const center=.5; let waiting=0; this.cars.forEach(c=>{const horizontal=c.lane<2; const green=(this.light===0&&horizontal)||(this.light===1&&!horizontal); const near=Math.abs(c.pos-center)<.07; if(near&&!green){c.wait+=dt;waiting++;} else {c.pos+=(0.035+this.values.ai/3000+this.values.width/700)*dt*this.speed; if(c.pos>1.05){c.pos=-.05;c.wait=0;}}}); const avgWait=this.cars.reduce((s,c)=>s+c.wait,0)/Math.max(1,this.cars.length); const congestion=clamp(waiting/Math.max(1,this.values.width)*28+this.values.cars*.35-this.values.ai*.18,0,100); const eff=clamp(100-congestion*.72+this.values.width*4,15,100); const energy=clamp(this.values.cars*.45+waiting*1.8+this.values.ai*.08,5,100); renderMetrics('caseMetrics',[{label:'平均等待',value:`${fmt(avgWait,1)}s`,cls:avgWait<4?'good':'bad'},{label:'系统效率',value:`${fmt(eff,0)}%`,cls:eff>72?'good':'mid'},{label:'能耗',value:fmt(energy,0),cls:energy<55?'good':'mid'},{label:'拥堵指数',value:fmt(congestion,0),cls:congestion<45?'good':'bad'}]); document.getElementById('caseAdvice').textContent=congestion>60?'优化建议：拥堵主要来自排队车辆超过道路容量。可提高 AI 控制策略、增加车道或降低固定绿灯时间，让绿灯分配更贴近车流。':'当前策略较平衡：等待时间和拥堵指数较低。继续比较不同参数，说明“反馈数据驱动优化”的作用。'; }
+      draw(){ const {ctx,w,h}=resizeCanvas(this.canvas); ctx.clearRect(0,0,w,h); const cx=w/2,cy=h/2; ctx.fillStyle='#dce8f5';ctx.fillRect(0,cy-70,w,140);ctx.fillRect(cx-70,0,140,h); ctx.strokeStyle='white';ctx.setLineDash([18,16]);ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(w,cy);ctx.moveTo(cx,0);ctx.lineTo(cx,h);ctx.stroke();ctx.setLineDash([]); ctx.fillStyle=this.light===0?'#18b26b':'#ff4d5e';ctx.beginPath();ctx.arc(cx-92,cy-92,15,0,TAU);ctx.fill();ctx.fillStyle=this.light===1?'#18b26b':'#ff4d5e';ctx.beginPath();ctx.arc(cx+92,cy+92,15,0,TAU);ctx.fill(); this.cars.forEach(c=>{ctx.fillStyle=c.color; let x,y;if(c.lane===0){x=c.pos*w;y=cy-32;}else if(c.lane===1){x=(1-c.pos)*w;y=cy+32;}else if(c.lane===2){x=cx-32;y=c.pos*h;}else{x=cx+32;y=(1-c.pos)*h;} roundRect(ctx,x-12,y-7,24,14,4,c.color);}); ctx.fillStyle='rgba(15,33,56,.88)';roundRect(ctx,18,18,260,72,14,'rgba(15,33,56,.88)');ctx.fillStyle='#d8edff';ctx.font='700 15px Microsoft YaHei';ctx.textAlign='left';ctx.fillText(`案例：${document.getElementById('caseSelect').value}`,36,48);ctx.fillText(`策略：${this.values.ai>60?'自适应反馈控制':'固定时长控制'}`,36,72); }
+    }
+
+    const modules = { core: new CoreModule(), closed: new ClosedModule(), process: new ProcessModule(), case: new CaseModule() };
+    Object.values(modules).forEach(m => m.bindControls());
+    let active = 'core';
+
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+      active = tab.dataset.module;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+      document.querySelectorAll('.module').forEach(m => m.classList.toggle('active', m.id === `module-${active}`));
+    }));
+
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
+    });
+    document.getElementById('nextStepGlobal').addEventListener('click', () => {
+      const m = modules[active]; m.stepIndex = (m.stepIndex + 1) % (m.steps?.length || 1);
+      const id = `${active}Steps`; if (document.getElementById(id)) renderSteps(id, m.steps, m.stepIndex);
+    });
+
+    // 主动画循环：只用 requestAnimationFrame，保证动画连续平滑。
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      Object.values(modules).forEach(m => { m.update(dt); if (m.progressInput) m.progressInput.value = m.progress; });
+      modules.core.draw(); modules.closed.draw(); modules.closed.drawDrone(); modules.process.draw(); modules.case.draw();
+      requestAnimationFrame(loop);
+    }
+    modules.core.recordExperiment(true);
+    window.addEventListener('resize', () => Object.values(modules).forEach(m => m.draw()));
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
